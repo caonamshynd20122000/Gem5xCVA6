@@ -1,0 +1,39 @@
+# Upstream large repositories & local environments (cloned separately)
+/gem5/
+/cva6/
+/mcpat_cacti/cacti/
+/.venv/
+/WORKLOG.md
+
+# Empty legacy folders
+/benchmarks/
+/configs/
+/results/
+
+# Build & simulation artifacts
+obj_dir/
+build/
+*.o
+*.fo
+*.a
+*.so
+*.gch
+*.d
+*.elf
+*.elf.dump
+*.bin
+*.vcd
+*.fst
+*.log
+
+# Raw gem5 per-run simulation logs (keep summary CSV, MD reports & PNG plots)
+step2_gem5_model/results/logs/
+step2_gem5_model/results/test_smoke/
+step1_baseline/results/logs/
+
+# Python & OS temporary files
+__pycache__/
+*.py[cod]
+.DS_Store
+*.swp
+*~
