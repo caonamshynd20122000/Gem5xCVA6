@@ -25,7 +25,7 @@ Design, architectural modeling in **gem5 (RISC-V)**, and RTL hardware implementa
 | Step | Directory | Objective | Status |
 | :---: | :--- | :--- | :--- |
 | **Step 1** | [`step1_baseline/`](step1_baseline/) | Build 12 4-Core RISC-V benchmarks & run 16-way Always-On RTL Baseline on Verilator 5.036 | Completed (12/12 PASS) |
-| **Step 2** | [`step2_gem5_model/`](step2_gem5_model/) | Build 4-Core CVA6 + `WayShutdownSetAssoc` in gem5 v26.0, evaluate 3 dynamic policies vs Static Oracle | Code & scripts ready |
+| **Step 2** | [`step2_gem5_model/`](step2_gem5_model/) | Build 4-Core CVA6 + `WayShutdownSetAssoc` in gem5 v26.0, evaluate 3 dynamic policies vs Static Oracle | Completed (Winner: `atd_dirty_aware`) |
 | **Step 3** | [`step3_cva6_rtl/`](step3_cva6_rtl/) | Implement the winning Way-Shutdown policy in SystemVerilog RTL & perform 3-way validation (Baseline RTL vs gem5 vs Custom RTL) | Planned |
 
 ---
@@ -99,6 +99,27 @@ All 12/12 benchmarks passed (`PASS`) on the 4-core RTL baseline. Full details: [
 | `bm10_l2_heavy_4cores` | L2 Custom | 2.0519 | 265,434 | 3.02% | 4 | 79,224.2 |
 | `bm11_l2_stream_mix` | L2 Custom | 1.7380 | 444,289 | 12.41% | 46,608 | 232,703.9 |
 | `bm12_l2_dynamic_4phases` | L2 Custom | 2.0478 | 273,884 | 3.13% | 382 | 89,223.5 |
+
+---
+
+## Step 2 gem5 DSE Results (12 Benchmarks x 8 Configurations, CACTI 7.0 22nm)
+
+Full breakdown: [`step2_gem5_model/results/step2_gem5_report.md`](step2_gem5_model/results/step2_gem5_report.md) | [`step2_gem5_model/results/step2_gem5_comparison.csv`](step2_gem5_model/results/step2_gem5_comparison.csv)
+
+| Policy | Avg Active Ways (/16) | IPC Change (%) | Avg L2 Miss Rate (%) | Total Dirty Flushes | Avg L2 Leakage (mW) | L2 Leakage Saving (%) | Avg EDP Improvement (%) |
+| :--- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| `static16` (Baseline) | 16.00 | +0.00% | 36.19% | 0 | 111.73 | 0.00% | +0.00% |
+| `static12` | 12.00 | -5.61% | 44.81% | 0 | 88.30 | 20.96% | -26.92% |
+| `static8` | 8.00 | -11.37% | 55.54% | 0 | 64.88 | 41.93% | -56.91% |
+| `static4` | 4.00 | -21.49% | 76.53% | 0 | 41.46 | 62.89% | -149.94% |
+| `static2` | 2.00 | -22.84% | 87.61% | 0 | 29.75 | 73.37% | -171.43% |
+| `selective_ways` | 14.16 | -1.75% | 41.54% | 12,635 | 100.95 | 9.64% | -17.82% |
+| `way_util` | 10.33 | -8.19% | 49.20% | 10,549 | 78.51 | 29.73% | -38.73% |
+| **`atd_dirty_aware`** | **11.09** | **-0.92%** | **38.12%** | **176** | **82.95** | **25.75%** | **+15.15%** |
+
+![Step 2 Pareto Comparison](step2_gem5_model/results/step2_pareto_comparison.png)
+
+**Selected Design for Step 3 RTL:** `atd_dirty_aware` — the only policy achieving positive L2+DRAM EDP improvement (**+15.15%** average, up to **+54.39%** on light L2 workloads) with **< 1% IPC loss** (**-0.92%**), **25.75%** average L2 leakage saving (up to **58.96%**), and **98.6%** fewer dirty writeback flushes than `selective_ways`.
 
 ---
 

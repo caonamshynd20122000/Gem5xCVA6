@@ -131,7 +131,7 @@ def build_4core_cva6_l2_system(args):
 
     # Shared 512 KiB, 16-Way, Write-Back L2 Cache with WayShutdownSetAssoc
     system.l2cache = CVA6SharedL2Cache()
-    system.l2cache.replacement_policy = TreePLRURP()
+    system.l2cache.replacement_policy = LRURP()
     system.l2cache.tags = WayShutdownSetAssoc(
         policy_mode=POLICY_MAP[args.policy],
         initial_active_ways=args.initial_ways,

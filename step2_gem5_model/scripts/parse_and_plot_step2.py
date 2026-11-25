@@ -112,10 +112,14 @@ def extract_metrics(bm, tag, stats):
     shutdown_events = get_first(stats, ["system.l2cache.tags.way_shutdown.wayShutdownEvents"], 0.0)
     wakeup_events = get_first(stats, ["system.l2cache.tags.way_shutdown.wayWakeupEvents"], 0.0)
 
-    if l2_accesses > 0 and active_way_accum > 0:
-        avg_active_ways = active_way_accum / l2_accesses
-    elif tag.startswith("static"):
+    way_active_sum = sum(
+        get_first(stats, [f"system.l2cache.tags.way_shutdown.wayActiveEpochs::{w}"], 0.0)
+        for w in range(16)
+    )
+    if tag.startswith("static"):
         avg_active_ways = float(tag.replace("static", ""))
+    elif epochs_eval > 0 and way_active_sum > 0:
+        avg_active_ways = way_active_sum / epochs_eval
     else:
         avg_active_ways = 16.0
     avg_active_ways = max(1.0, min(16.0, avg_active_ways))
