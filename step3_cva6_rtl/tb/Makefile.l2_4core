@@ -1,0 +1,36 @@
+# Verilator Makefile for 4-Core OpenHW CVA6 + 512 KiB 16-Way Write-Back Shared L2 Baseline
+# Run from /data/namcv10/gem5_cva6/cva6:
+#   make -f corev_apu/tb/Makefile.l2_4core
+
+VERILATOR    ?= /usr/local/bin/verilator
+CVA6_REPO_DIR := $(CURDIR)
+TARGET_CFG   := fpga_linux_cv64a6
+HPDCACHE_DIR := $(CVA6_REPO_DIR)/core/cache_subsystem/hpdcache
+OBJ_DIR      := work-ver-l2-4core
+SIM_BIN      := $(OBJ_DIR)/Variane_testharness
+
+export CVA6_REPO_DIR
+export TARGET_CFG
+export HPDCACHE_DIR
+
+.PHONY: all clean
+
+all: $(SIM_BIN)
+
+$(SIM_BIN):
+	$(VERILATOR) --cc --exe --build -j 4 --no-timing \
+		verilator_config.vlt \
+		-f config/target/$(TARGET_CFG)/Flist.cva6 \
+		-f verif/tb/core/Flist.testharness \
+		-DPRELOAD=1 -DVERILATOR \
+		--unroll-count 256 \
+		-Wno-PINCONNECTEMPTY -Wno-ASSIGNDLY -Wno-DECLFILENAME \
+		-Wno-UNUSED -Wno-UNOPTFLAT -Wno-BLKANDNBLK -Wno-style \
+		-Wno-WIDTHTRUNC -Wno-WIDTHEXPAND -Wno-fatal \
+		-CFLAGS "-O3 -std=c++17 -I$(CVA6_REPO_DIR)" \
+		--top-module ariane_testharness \
+		--Mdir $(OBJ_DIR) \
+		corev_apu/tb/ariane_tb_l2_4core.cpp
+
+clean:
+	rm -rf $(OBJ_DIR)

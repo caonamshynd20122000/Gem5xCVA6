@@ -24,7 +24,7 @@ Architecture exploration in gem5 (RISC-V) and SystemVerilog RTL implementation i
 | :---: | :--- | :--- | :--- |
 | Step 1 | [`step1_baseline/`](step1_baseline/) | 12 4-core RISC-V benchmarks on 4-core OpenHW CVA6 + 16-way always-on WB L2 baseline (Verilator 5.036) | Done (12/12 pass) |
 | Step 2 | [`step2_gem5_model/`](step2_gem5_model/) | Calibrated 4-core CVA6 + `WayShutdownSetAssoc` in gem5 v26.0, evaluation of 3 control schemes vs static sweep | Done (`atd_dirty_aware`: +20.24% EDP) |
-| Step 3 | [`step3_cva6_rtl/`](step3_cva6_rtl/) | SystemVerilog RTL (`atd_dirty_aware`) integrated into 4-core OpenHW CVA6 via AXI4 | In progress |
+| Step 3 | [`step3_cva6_rtl/`](step3_cva6_rtl/) | SystemVerilog RTL (`atd_dirty_aware`) integrated into 4-core OpenHW CVA6 via AXI4 | Done (12/12 pass, +42.64% EDP) |
 
 ## Directory Layout
 
@@ -104,6 +104,20 @@ See [`step2_gem5_model/results/step2_gem5_report.md`](step2_gem5_model/results/s
 ![Step 2 Pareto Comparison](step2_gem5_model/results/step2_pareto_comparison.png)
 
 `atd_dirty_aware` was selected for RTL integration: +20.24% average L2+DRAM EDP improvement (positive on all 10 L2-active workloads), -0.28% IPC change, 24.67% average L2 leakage reduction, and 157 total dirty flushes across all 12 benchmarks.
+
+## Step 3: 4-Core OpenHW CVA6 Custom RTL Results (`atd_dirty_aware`)
+
+See [`step3_cva6_rtl/results/step3_3way_comparison.md`](step3_cva6_rtl/results/step3_3way_comparison.md) and [`step3_rtl_summary.csv`](step3_cva6_rtl/results/step3_rtl_summary.csv).
+
+- Functional check: 12/12 pass on 4-core OpenHW CVA6, all checksums match Step 1 baseline.
+
+| Configuration | Avg Active Ways (/16) | 4-Core IPC Change (%) | L2 Leakage Saving (%) | Shutdown Dirty Flushes | Avg EDP Change (%) |
+| :--- | ---: | ---: | ---: | ---: | ---: |
+| Step 1: OpenHW CVA6 RTL Baseline (16-way) | 16.00 | +0.00% | 0.00% | 0 | +0.00% |
+| Step 2: gem5 Model (`atd_dirty_aware`) | 11.10 | -0.28% | 24.67% | 157 | +20.24% |
+| Step 3: OpenHW CVA6 RTL (`atd_dirty_aware`) | 4.76 | -7.92% | 56.53% | 64 | +42.64% |
+
+![Step 3 Comparison](step3_cva6_rtl/results/step3_3way_comparison.png)
 
 ### L2 Way-Shutdown Subsystem Block Diagram
 

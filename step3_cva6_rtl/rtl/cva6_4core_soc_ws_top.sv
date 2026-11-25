@@ -179,6 +179,7 @@ module cva6_4core_soc_ws_top
         .rst_ni                 (rst_ni),
         .ws_enable_i            (ws_enable_i),
         .l2_req_valid_i         (arb_req_valid),
+        .l2_req_is_write_i      (arb_req_write),
         .l2_req_addr_i          (arb_req_addr),
         .way_dirty_cnt_i        (l2_way_dirty_cnt),
         .flush_req_o            (ws_flush_req),

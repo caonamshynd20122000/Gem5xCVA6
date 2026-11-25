@@ -21,6 +21,7 @@ module l2_way_shutdown_ctrl
 
     // L2 Access Snoop Interface (off critical path)
     input  logic                        l2_req_valid_i,
+    input  logic                        l2_req_is_write_i,
     input  logic [63:0]                 l2_req_addr_i,
 
     // Per-Way Dirty Line Counters from Shared L2
@@ -179,26 +180,28 @@ module l2_way_shutdown_ctrl
         end else begin
             cnt_active_way_cycles_o <= cnt_active_way_cycles_o + {59'd0, powered_way_count};
 
-            // 1. Update Sampled-Set ATD on sampled L2 accesses
+            // 1. Update Sampled-Set ATD on sampled L2 accesses (filter redundant L1D WT MRU bursts)
             if (atd_sampled) begin
-                atd_acc_q <= atd_acc_q + 32'd1;
-                if (atd_hit_found) begin
-                    atd_hits_q[atd_hit_depth] <= atd_hits_q[atd_hit_depth] + 32'd1;
-                    for (int d = 1; d < L2_WAYS; d++) begin
-                        if (d <= int'(atd_hit_depth)) begin
+                if (!(l2_req_is_write_i && atd_hit_found && (atd_hit_depth == 4'd0))) begin
+                    atd_acc_q <= atd_acc_q + 32'd1;
+                    if (atd_hit_found) begin
+                        atd_hits_q[atd_hit_depth] <= atd_hits_q[atd_hit_depth] + 32'd1;
+                        for (int d = 1; d < L2_WAYS; d++) begin
+                            if (d <= int'(atd_hit_depth)) begin
+                                atd_tag_q[atd_set_idx][d] <= atd_tag_q[atd_set_idx][d - 1];
+                                atd_val_q[atd_set_idx][d] <= atd_val_q[atd_set_idx][d - 1];
+                            end
+                        end
+                        atd_tag_q[atd_set_idx][0] <= atd_req_tag;
+                        atd_val_q[atd_set_idx][0] <= 1'b1;
+                    end else begin
+                        for (int d = 1; d < L2_WAYS; d++) begin
                             atd_tag_q[atd_set_idx][d] <= atd_tag_q[atd_set_idx][d - 1];
                             atd_val_q[atd_set_idx][d] <= atd_val_q[atd_set_idx][d - 1];
                         end
+                        atd_tag_q[atd_set_idx][0] <= atd_req_tag;
+                        atd_val_q[atd_set_idx][0] <= 1'b1;
                     end
-                    atd_tag_q[atd_set_idx][0] <= atd_req_tag;
-                    atd_val_q[atd_set_idx][0] <= 1'b1;
-                end else begin
-                    for (int d = 1; d < L2_WAYS; d++) begin
-                        atd_tag_q[atd_set_idx][d] <= atd_tag_q[atd_set_idx][d - 1];
-                        atd_val_q[atd_set_idx][d] <= atd_val_q[atd_set_idx][d - 1];
-                    end
-                    atd_tag_q[atd_set_idx][0] <= atd_req_tag;
-                    atd_val_q[atd_set_idx][0] <= 1'b1;
                 end
             end
 
