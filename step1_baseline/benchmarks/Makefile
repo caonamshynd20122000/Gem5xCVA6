@@ -6,7 +6,7 @@ OBJDUMP := $(RISCV_PREFIX)objdump
 SIZE    := $(RISCV_PREFIX)size
 
 # Compile as 32-bit aligned RV64IM + Zicsr so both Verilator RTL and gem5 execute identical machine code
-CFLAGS  := -O2 -march=rv64im_zicsr -mabi=lp64 -mcmodel=medany -fno-builtin -ffreestanding -nostdlib -Wall -Wextra -I.
+CFLAGS  := -O2 -march=rv64ima_zicsr -mabi=lp64 -mcmodel=medany -fno-builtin -ffreestanding -nostdlib -Wall -Wextra -I.
 LDFLAGS := -T common/link_4core.ld -nostdlib -static -Wl,--no-warn-rwx-segments
 
 BENCHMARKS := \

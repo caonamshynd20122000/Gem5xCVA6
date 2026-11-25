@@ -50,13 +50,14 @@ TAGS = [
     "atd_dirty_aware",
 ]
 
-# CACTI 7.0 (22nm) model constants for 512 KiB, 16-Way, 64B Line Shared L2 Cache
-L2_PERIPH_LEAK_MW = 18.041          # Peripheral leakage (always-on)
-L2_WAY_LEAK_MW = 5.8553             # SRAM cell leakage per active way (16 * 5.8553 = 93.685 mW; total = 111.726 mW)
+# CACTI 7.0 (22nm) model constants for 512 KiB, 16-Way, 64B Line Shared L2 Cache (aligned with Step 1)
+L2_PERIPH_LEAK_MW = 18.0414         # Peripheral leakage (always-on)
+L2_WAY_LEAK_MW = 93.6846 / 16.0     # SRAM cell leakage per active way (5.8553 mW/way; 16w total = 111.726 mW)
+L2_GATED_RATIO = 0.04               # Residual sleep-transistor leakage ratio for power-gated ways
 L2_BASE_LEAK_MW = L2_PERIPH_LEAK_MW + 16.0 * L2_WAY_LEAK_MW
 L2_TAG_ACCESS_PJ = 0.25             # Dynamic energy per probed way tag (pJ)
 L2_DATA_ACCESS_PJ = 1.228           # Dynamic energy per probed way data array (pJ)
-DRAM_LINE_ACCESS_NJ = 1.50          # 64B DRAM read/writeback energy (nJ)
+DRAM_LINE_ACCESS_NJ = 0.650         # 64B DRAM read/writeback energy (nJ, identical to Step 1 RTL)
 
 STAT_LINE_RE = re.compile(r"^([A-Za-z0-9_.:-]+)\s+([+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?|nan|inf)")
 
@@ -124,8 +125,11 @@ def extract_metrics(bm, tag, stats):
         avg_active_ways = 16.0
     avg_active_ways = max(1.0, min(16.0, avg_active_ways))
 
-    # CACTI 7.0 (22nm) Power & Energy
-    leakage_mw = L2_PERIPH_LEAK_MW + avg_active_ways * L2_WAY_LEAK_MW
+    # CACTI 7.0 (22nm) Power & Energy (aligned with Step 1)
+    gated_ways = 16.0 - avg_active_ways
+    leakage_mw = (L2_PERIPH_LEAK_MW
+                  + avg_active_ways * L2_WAY_LEAK_MW
+                  + gated_ways * L2_WAY_LEAK_MW * L2_GATED_RATIO)
     leakage_saving_pct = (1.0 - leakage_mw / L2_BASE_LEAK_MW) * 100.0
 
     # Energy in nJ: mW * s = mJ -> * 1e6 = nJ; pJ * 1e-3 = nJ

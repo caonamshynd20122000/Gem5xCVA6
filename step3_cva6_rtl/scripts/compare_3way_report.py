@@ -140,7 +140,11 @@ def main():
             r["checksum_match"] = (r["checksum"] == b1["checksum"])
             if r["checksum_match"]:
                 csum_matches += 1
-            r["ipc_change_pct"] = (r["agg_ipc"] - b1["ipc"]) / b1["ipc"] * 100.0
+            if b1["ipc"] > 0 and r["agg_ipc"] > 0:
+                r["ipc_change_pct"] = (r["agg_ipc"] - b1["ipc"]) / b1["ipc"] * 100.0
+            else:
+                # Same ELF executes identical instruction count -> IPC ratio = base_cycles / rtl_cycles
+                r["ipc_change_pct"] = (b1["cycles"] / r["soc_cycles"] - 1.0) * 100.0 if r["soc_cycles"] > 0 else 0.0
             r["leak_saving_pct"] = (1.0 - r["l2_leak_mw"] / b1["leak_mw"]) * 100.0
             r["energy_saving_pct"] = (1.0 - r["total_l2_dram_nj"] / b1["total_en_nj"]) * 100.0
             edp1 = b1["total_en_nj"] * b1["cycles"]

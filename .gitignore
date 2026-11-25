@@ -25,6 +25,8 @@ build/
 *.vcd
 *.fst
 *.log
+*.traces
+*.dasm
 
 # Raw gem5 per-run simulation logs (keep summary CSV, MD reports & PNG plots)
 step2_gem5_model/results/logs/

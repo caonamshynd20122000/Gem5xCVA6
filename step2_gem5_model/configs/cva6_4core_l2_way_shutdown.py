@@ -87,9 +87,9 @@ class CVA6L1DCache(Cache):
 class CVA6SharedL2Cache(Cache):
     size = "512kB"
     assoc = 16
-    tag_latency = 2
-    data_latency = 4
-    response_latency = 2
+    tag_latency = 1
+    data_latency = 2
+    response_latency = 1
     mshrs = 16
     tgts_per_mshr = 8
     write_buffers = 16
@@ -103,9 +103,10 @@ def build_4core_cva6_l2_system(args):
     system.mem_ranges = [AddrRange("512MB")]
     system.cache_line_size = 64
 
-    # 4x CVA6 In-Order Cores (Core 0 .. Core 3)
+    # 4x OpenHW CVA6 (fpga_linux_cv64a6) In-Order Cores (Core 0 .. Core 3)
     system.cpu = [RiscvMinorCPU(cpu_id=i) for i in range(4)]
-    system.l2bus = L2XBar(width=16)
+    # 64-bit (8B/cycle) AXI4 Crossbar matching OpenHW CVA6 axi_xbar (AxiDataWidth = 64)
+    system.l2bus = L2XBar(width=8)
 
     for i, cpu in enumerate(system.cpu):
         cpu.decodeInputWidth = 1
@@ -115,6 +116,8 @@ def build_4core_cva6_l2_system(args):
         cpu.executeInputBufferSize = 8
         cpu.executeLSQStoreBufferSize = 7
         cpu.executeLSQTransfersQueueSize = 8
+        cpu.mmu.itb.size = 16
+        cpu.mmu.dtb.size = 16
         cpu.executeFuncUnits = CVA6FUPool()
         cpu.branchPred = BranchPredictor(
             conditionalBranchPred=LocalBP(localPredictorSize=128),
@@ -141,14 +144,14 @@ def build_4core_cva6_l2_system(args):
     )
     system.l2cache.cpu_side = system.l2bus.mem_side_ports
 
-    system.membus = SystemXBar(width=16)
+    system.membus = SystemXBar(width=8)
     system.l2cache.mem_side = system.membus.cpu_side_ports
     system.system_port = system.membus.cpu_side_ports
 
     system.mem_ctrl = SimpleMemory(
         range=system.mem_ranges[0],
         latency="28ns",
-        bandwidth="12.8GB/s",
+        bandwidth="8GB/s",
     )
     system.mem_ctrl.port = system.membus.mem_side_ports
 

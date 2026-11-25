@@ -26,14 +26,14 @@ _start:
     fence
     la t0, boot_ready
     li t1, 1
-    sd t1, 0(t0)
+    amoswap.d.rl zero, t1, (t0)
     fence
     j run_core
 
 wait_bss:
     la t0, boot_ready
 3:
-    ld t1, 0(t0)
+    amoor.d.aq t1, zero, (t0)
     beqz t1, 3b
     fence
 
