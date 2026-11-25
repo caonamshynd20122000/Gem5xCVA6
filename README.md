@@ -1,89 +1,76 @@
-# Gem5 x CVA6 — 4-Core CVA6 + 16-Way Write-Back Shared L2 Cache with Dynamic Way-Shutdown
+# Gem5xCVA6: 4-Core CVA6 with Dynamic Way-Shutdown Shared L2 Cache
 
-Design, architectural modeling in **gem5 (RISC-V)**, and RTL hardware implementation in **SystemVerilog (Verilator)** of a **Dynamic Cache Way-Shutdown** controller for a **512 KiB, 16-Way, Write-Back Shared L2 Cache** in a **4-Core CVA6 (RV64GC)** multicore cluster. The primary objective is to significantly reduce L2 static (leakage) and total L2+DRAM energy while keeping 4-core aggregate IPC degradation within **<= 1% - 2%**.
+Architecture exploration in gem5 (RISC-V) and SystemVerilog RTL implementation (Verilator) of a dynamic way-shutdown 512 KiB, 16-way, write-back shared L2 cache for a 4-core CVA6 cluster.
 
-## System Architecture
+## System Overview
 
-![4-Core CVA6 + 16-Way Write-Back Shared L2 Architecture](docs/cva6_gem5_architecture.png)
+![System Architecture](docs/cva6_gem5_architecture.png)
 
-### Target Hardware Parameters
+### Hardware Configuration
 
-| Component | Configuration |
+| Component | Parameters |
 | :--- | :--- |
-| **Processor Cluster** | 4x CVA6 In-Order Cores (`RV64GC`, 6-stage pipeline, 1 GHz) |
-| **Private L1 I-Cache** | 16 KiB, 4-Way, 64B line (per core) |
-| **Private L1 D-Cache** | 32 KiB, 8-Way, 64B line, Write-Through (`CACHE_WT`, per core) |
-| **Coherent Interconnect** | 128-bit Coherent Crossbar (`L2XBar`) |
-| **Shared L2 Cache** | **512 KiB, 16-Way (`W0..W15`), 512 Sets, 64B line, Write-Back** |
-| **Way-Shutdown Controller** | `way_enable_mask[15:0]`, Sampled-Set ATD (16/512 sets), Write-Back Dirty-Flush Guard, `T_wakeup = 6 cycles` |
-| **Power Model (CACTI 7.0, 22nm)** | Total L2 Leakage = `111.73 mW` (`5.86 mW/way` power-gateable SRAM + `18.04 mW` peripheral); Read = `19.65 pJ`, Write = `20.81 pJ` |
+| Cores | 4x CVA6 in-order (`RV64GC`, 6-stage, 1 GHz) |
+| Private L1I | 16 KiB, 4-way, 64B line |
+| Private L1D | 32 KiB, 8-way, 64B line, write-through (`CACHE_WT`) |
+| Interconnect | 128-bit coherent crossbar (`L2XBar`) |
+| Shared L2 | 512 KiB, 16-way (`W0..W15`), 512 sets, 64B line, write-back |
+| Way-Shutdown Control | `way_en[15:0]`, `way_sd[15:0]`, 16-set ATD, dirty-flush guard (`<= 96`), `T_wakeup = 6 cycles` |
+| Power Model | CACTI 7.0 (22nm): 111.73 mW leakage (5.86 mW/way SRAM + 18.04 mW peripheral), 19.65 pJ read, 20.81 pJ write |
 
----
+## Project Stages
 
-## 3-Step Workflow & Status
-
-| Step | Directory | Objective | Status |
+| Stage | Directory | Description | Status |
 | :---: | :--- | :--- | :--- |
-| **Step 1** | [`step1_baseline/`](step1_baseline/) | Build 12 4-Core RISC-V benchmarks & run 16-way Always-On RTL Baseline on Verilator 5.036 | Completed (12/12 PASS) |
-| **Step 2** | [`step2_gem5_model/`](step2_gem5_model/) | Build 4-Core CVA6 + `WayShutdownSetAssoc` in gem5 v26.0, evaluate 3 dynamic policies vs Static Oracle | Completed (Winner: `atd_dirty_aware`) |
-| **Step 3** | [`step3_cva6_rtl/`](step3_cva6_rtl/) | Implement the winning Way-Shutdown policy in SystemVerilog RTL & perform 3-way validation (Baseline RTL vs gem5 vs Custom RTL) | Planned |
+| Step 1 | [`step1_baseline/`](step1_baseline/) | 12 4-core RISC-V benchmarks and 16-way always-on RTL baseline (Verilator 5.036) | Done (12/12 pass) |
+| Step 2 | [`step2_gem5_model/`](step2_gem5_model/) | 4-core CVA6 + `WayShutdownSetAssoc` in gem5 v26.0, evaluation of 3 control schemes vs static sweep | Done |
+| Step 3 | [`step3_cva6_rtl/`](step3_cva6_rtl/) | SystemVerilog RTL (`atd_dirty_aware`) and comparison against baseline RTL and gem5 | Done (12/12 pass) |
 
----
-
-## Repository Structure
+## Directory Layout
 
 ```text
 Gem5xCVA6/
-├── README.md                             # Project overview, architecture & quick-start guide
-├── .gitignore                            # Excludes upstream repos, venv & build artifacts
-├── env.sh                                # Environment setup script
-├── requirements.txt                      # Python dependencies (scons, numpy, pandas, matplotlib, pyyaml)
+├── README.md
+├── env.sh
+├── requirements.txt
 ├── docs/
-│   ├── cva6_gem5_architecture.png        # High-resolution system architecture diagram
-│   ├── cva6_gem5_architecture.svg        # Vector SVG architecture diagram
-│   ├── architecture_diagram.md           # Mermaid system diagram
-│   └── architecture_plan.md              # Architecture specification, 12 benchmarks & Way-Shutdown policies
+│   ├── cva6_gem5_architecture.png
+│   ├── diagram_1_l2_ws_top.png
+│   ├── architecture_diagram.md
+│   └── architecture_plan.md
 ├── mcpat_cacti/
-│   └── cva6_l2_512k_16w_22nm.cfg(.out)   # CACTI 7.0 (22nm) config & output for 512 KiB 16-Way Shared L2
+│   └── cva6_l2_512k_16w_22nm.cfg(.out)
 ├── scripts/
-│   └── draw_architecture.py              # Script to regenerate PNG/SVG architecture diagrams
-├── step1_baseline/                       # STEP 1: 12 4-Core Benchmarks & CVA6 L2 RTL Baseline
-│   ├── README.md
-│   ├── run_step1_baseline.sh             # Automated build & run script for all 12 benchmarks on Verilator
-│   ├── benchmarks/                       # 7 standard (bm01..bm07) + 5 L2-targeted (bm08..bm12) benchmarks
-│   ├── cva6_l2_rtl_baseline/             # SystemVerilog RTL for 4-Core + 16-Way WB L2 + C++ Verilator TB
-│   └── results/                          # step1_baseline_summary.csv & step1_baseline_report.md
-├── step2_gem5_model/                     # STEP 2: gem5 Model & Way-Shutdown DSE
-│   ├── README.md
-│   ├── src/
-│   │   ├── way_shutdown_tags.hh          # C++ WayShutdownSetAssoc class (inherits BaseSetAssoc)
-│   │   ├── way_shutdown_tags.cc          # 4 policies, 16-set ATD, Dirty-Way Flush & Wakeup logic
-│   │   └── apply_gem5_patch.py           # Auto-patches gem5/src/mem/cache/tags/{Tags.py,SConscript}
-│   ├── configs/
-│   │   └── cva6_4core_l2_way_shutdown.py # gem5 4-Core CVA6 + L2XBar + 512 KiB 16-Way L2 config
-│   ├── benchmarks_se/                    # 4-Core SE-mode wrapper (SYS_clone) reusing Step 1 C sources
-│   ├── scripts/
-│   │   ├── run_step2_gem5_dse.sh         # Automated DSE sweep (12 benchmarks x 8 configs = 96 runs)
-│   │   └── parse_and_plot_step2.py       # Stats parser + CACTI 7.0 -> CSV, Markdown & Pareto PNG
-│   └── results/                          # Step 2 comparison CSV, report & Pareto plot
-└── step3_cva6_rtl/                       # STEP 3: Custom Way-Shutdown RTL & 3-Way Verification
-    └── README.md
+│   ├── draw_architecture.py
+│   └── draw_rtl_block_diagrams.py
+├── step1_baseline/
+│   ├── benchmarks/                 # 7 standard (bm01..bm07) + 5 L2-focused (bm08..bm12)
+│   ├── cva6_l2_rtl_baseline/       # 4-core + 16-way WB L2 baseline RTL + Verilator TB
+│   ├── run_step1_baseline.sh
+│   └── results/
+├── step2_gem5_model/
+│   ├── src/                        # WayShutdownSetAssoc C++ tag store + patch script
+│   ├── configs/                    # cva6_4core_l2_way_shutdown.py
+│   ├── benchmarks_se/              # 4-core SE-mode wrapper (SYS_clone)
+│   ├── scripts/                    # run_step2_gem5_dse.sh, parse_and_plot_step2.py
+│   └── results/
+└── step3_cva6_rtl/
+    ├── rtl/                        # l2_way_shutdown_ctrl.sv, cva6_shared_l2_16way_ws.sv, cva6_4core_soc_ws_top.sv
+    ├── tb/                         # sim_main_ws.cpp, Makefile
+    ├── scripts/                    # run_step3_rtl_eval.sh, compare_3way_report.py
+    └── results/
 ```
 
----
+## Evaluated Way-Shutdown Schemes (Step 2)
 
-## Modeled Way-Shutdown Policies (Step 2)
+1. `static`: Fixed number of active ways (`16` baseline; `12, 8, 4, 2` static sweep).
+2. `selective_ways`: Miss-rate threshold with hysteresis (disable 2 ways after 2 epochs with `miss_rate < 2%`; enable 4 ways when `miss_rate > 4.5%`).
+3. `way_util`: Per-way hit counters per epoch; disables low-hit ways and expands on saturation.
+4. `atd_dirty_aware`: 16-set sampled Auxiliary Tag Directory (ATD, ~672 B tag-only) selects the smallest even way count `k*` retaining `>= 98.5%` of 16-way hits (scales to 4 ways when ATD hit rate `< 5%`), gated by a write-back dirty-flush guard (`dirty_cnt[w] <= 96`).
 
-1. **`static` (Baseline & Oracle):** Keeps a fixed number of `k` ways enabled (`k = 16` for Baseline; sweep `k = 12, 8, 4, 2` for Static Oracle reference).
-2. **`selective_ways` (Albonesi Miss-Rate + Hysteresis):** Shuts down 2 ways after 2 consecutive epochs with `miss_rate < 2%`; wakes up 4 ways when `miss_rate > 4.5%`.
-3. **`way_util` (Per-Way Hit Counter):** Tracks per-way hit counts per epoch, disabling low-utility ways and expanding when active boundary ways saturate.
-4. **`atd_dirty_aware` (Proposed):** Uses a 16-set Sampled-Set Auxiliary Tag Directory (ATD, < 1.5% area overhead) to find the minimum way count `k*` capturing >= 98.5% of full 16-way hits (automatically scaling down to 4 ways during streaming phases), combined with a **Write-Back Dirty-Flush Cost Guard** to avoid energy-negative flushes.
+## Step 1: Baseline RTL Results (Verilator 5.036, 16-Way Always-On)
 
----
-
-## Step 1 Baseline Results (16-Way Always-On RTL, Verilator 5.036)
-
-All 12/12 benchmarks passed (`PASS`) on the 4-core RTL baseline. Full details: [`step1_baseline/results/step1_baseline_report.md`](step1_baseline/results/step1_baseline_report.md).
+See [`step1_baseline/results/step1_baseline_report.md`](step1_baseline/results/step1_baseline_report.md).
 
 | Benchmark | Group | Agg. IPC (4-Core) | L2 Accesses | L2 Miss Rate | L2 Dirty WB | Total L2+DRAM (nJ) |
 | :--- | :---: | ---: | ---: | ---: | ---: | ---: |
@@ -100,45 +87,60 @@ All 12/12 benchmarks passed (`PASS`) on the 4-core RTL baseline. Full details: [
 | `bm11_l2_stream_mix` | L2 Custom | 1.7380 | 444,289 | 12.41% | 46,608 | 232,703.9 |
 | `bm12_l2_dynamic_4phases` | L2 Custom | 2.0478 | 273,884 | 3.13% | 382 | 89,223.5 |
 
----
+## Step 2: gem5 Evaluation (12 Benchmarks x 8 Configs, CACTI 7.0 22nm)
 
-## Step 2 gem5 DSE Results (12 Benchmarks x 8 Configurations, CACTI 7.0 22nm)
+See [`step2_gem5_model/results/step2_gem5_report.md`](step2_gem5_model/results/step2_gem5_report.md) and [`step2_gem5_comparison.csv`](step2_gem5_model/results/step2_gem5_comparison.csv).
 
-Full breakdown: [`step2_gem5_model/results/step2_gem5_report.md`](step2_gem5_model/results/step2_gem5_report.md) | [`step2_gem5_model/results/step2_gem5_comparison.csv`](step2_gem5_model/results/step2_gem5_comparison.csv)
-
-| Policy | Avg Active Ways (/16) | IPC Change (%) | Avg L2 Miss Rate (%) | Total Dirty Flushes | Avg L2 Leakage (mW) | L2 Leakage Saving (%) | Avg EDP Improvement (%) |
+| Config | Avg Active Ways (/16) | IPC Change (%) | Avg L2 Miss Rate (%) | Total Dirty Flushes | Avg L2 Leakage (mW) | L2 Leakage Saving (%) | Avg EDP Change (%) |
 | :--- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| `static16` (Baseline) | 16.00 | +0.00% | 36.19% | 0 | 111.73 | 0.00% | +0.00% |
+| `static16` | 16.00 | +0.00% | 36.19% | 0 | 111.73 | 0.00% | +0.00% |
 | `static12` | 12.00 | -5.61% | 44.81% | 0 | 88.30 | 20.96% | -26.92% |
 | `static8` | 8.00 | -11.37% | 55.54% | 0 | 64.88 | 41.93% | -56.91% |
 | `static4` | 4.00 | -21.49% | 76.53% | 0 | 41.46 | 62.89% | -149.94% |
 | `static2` | 2.00 | -22.84% | 87.61% | 0 | 29.75 | 73.37% | -171.43% |
 | `selective_ways` | 14.16 | -1.75% | 41.54% | 12,635 | 100.95 | 9.64% | -17.82% |
 | `way_util` | 10.33 | -8.19% | 49.20% | 10,549 | 78.51 | 29.73% | -38.73% |
-| **`atd_dirty_aware`** | **11.09** | **-0.92%** | **38.12%** | **176** | **82.95** | **25.75%** | **+15.15%** |
+| `atd_dirty_aware` | 11.09 | -0.92% | 38.12% | 176 | 82.95 | 25.75% | +15.15% |
 
 ![Step 2 Pareto Comparison](step2_gem5_model/results/step2_pareto_comparison.png)
 
-**Selected Design for Step 3 RTL:** `atd_dirty_aware` — the only policy achieving positive L2+DRAM EDP improvement (**+15.15%** average, up to **+54.39%** on light L2 workloads) with **< 1% IPC loss** (**-0.92%**), **25.75%** average L2 leakage saving (up to **58.96%**), and **98.6%** fewer dirty writeback flushes than `selective_ways`.
+`atd_dirty_aware` was selected for RTL implementation: +15.15% average L2+DRAM EDP improvement, -0.92% IPC change, 25.75% average L2 leakage reduction, and 176 total dirty flushes across all 12 benchmarks.
 
----
+## Step 3: RTL Implementation & Comparison
 
-## Quick Start
+See [`step3_cva6_rtl/results/step3_3way_comparison.md`](step3_cva6_rtl/results/step3_3way_comparison.md) and [`step3_rtl_summary.csv`](step3_cva6_rtl/results/step3_rtl_summary.csv).
 
-### 1. Run Step 1 (Verilator RTL Baseline)
+- Functional check: 12/12 pass, all 4-core checksums match Step 1 baseline.
+- Lint: Verilator `--lint-only` clean (0 warnings, 0 errors).
+
+| Configuration | Avg Active Ways (/16) | 4-Core IPC Change (%) | L2 Leakage Saving (%) | Shutdown Dirty Flushes | Avg EDP Change (%) |
+| :--- | ---: | ---: | ---: | ---: | ---: |
+| Step 1: CVA6 RTL Baseline (16-way) | 16.00 | +0.00% | 0.00% | 0 | +0.00% |
+| Step 2: gem5 Model (`atd_dirty_aware`) | 11.09 | -0.92% | 25.75% | 176 | +15.15% |
+| Step 3: CVA6 RTL (`atd_dirty_aware`) | 5.59 | +0.03% | 52.36% | 211 | +38.53% |
+
+![Step 3 Comparison](step3_cva6_rtl/results/step3_3way_comparison.png)
+
+### L2 Way-Shutdown Subsystem Block Diagram
+
+![Top-Level L2 Way-Shutdown Subsystem](docs/diagram_1_l2_ws_top.png)
+
+## Build and Run
+
+### Step 1: Baseline RTL
 ```bash
 ./step1_baseline/run_step1_baseline.sh 16
 ```
 
-### 2. Run Step 2 (Patch & Build gem5, then Run Full DSE)
+### Step 2: gem5 Simulation
 ```bash
-# Apply WayShutdownSetAssoc patch into gem5 source tree
 .venv/bin/python step2_gem5_model/src/apply_gem5_patch.py
-
-# Build gem5 (RISC-V target)
 cd gem5 && ../.venv/bin/scons build/RISCV/gem5.fast -j4 --linker=lld && cd ..
-
-# Build 12 SE-mode 4-core RISC-V benchmarks and run full DSE (12 benchmarks x 8 configs)
 make -C step2_gem5_model/benchmarks_se
 ./step2_gem5_model/scripts/run_step2_gem5_dse.sh
+```
+
+### Step 3: Custom Way-Shutdown RTL
+```bash
+./step3_cva6_rtl/scripts/run_step3_rtl_eval.sh
 ```

@@ -30,6 +30,7 @@ build/
 step2_gem5_model/results/logs/
 step2_gem5_model/results/test_smoke/
 step1_baseline/results/logs/
+step3_cva6_rtl/results/logs/
 
 # Python & OS temporary files
 __pycache__/
