@@ -76,7 +76,7 @@ def save_fig(fig, docs_dir, stem):
 
 
 # ==============================================================================
-# DIAGRAM 1: TOP-LEVEL SHARED L2 + WAY-SHUTDOWN SUBSYSTEM
+# DIAGRAM 1: TOP-LEVEL AXI4 SHARED L2 + WAY-SHUTDOWN SUBSYSTEM (axi_l2_wb_wrap)
 # ==============================================================================
 def draw_top(docs_dir):
     fig, ax = plt.subplots(figsize=(16, 8.2))
@@ -84,92 +84,76 @@ def draw_top(docs_dir):
     ax.set_ylim(0, 8.2)
     ax.axis("off")
 
-    ax.text(8.0, 7.90, "Block Diagram 1 — Top-Level L2 Way-Shutdown Subsystem Interconnect",
+    ax.text(8.0, 7.90, "L2 Way-Shutdown Subsystem Block Diagram (axi_l2_wb_wrap)",
             ha="center", va="center", fontsize=13.0, fontweight="bold", color="#0F172A")
-    ax.text(8.0, 7.56, "Module Integration inside cva6_4core_soc_ws_top: cva6_shared_l2_16way_ws <-> l2_way_shutdown_ctrl",
+    ax.text(8.0, 7.56, "AXI4 Slave (from axi_xbar)  ->  cva6_shared_l2_16way_ws + l2_way_shutdown_ctrl  ->  AXI4 Master (to DRAM)",
             ha="center", va="center", fontsize=8.8, color="#475569")
 
-    # Outer Subsystem Boundary
-    blk(ax, 2.3, 0.55, 11.4, 6.80,
-        "L2 + Way-Shutdown Subsystem (Inside cva6_4core_soc_ws_top)",
+    # Outer Subsystem Boundary: axi_l2_wb_wrap
+    blk(ax, 2.35, 0.55, 11.3, 6.80,
+        "axi_l2_wb_wrap (AXI4 Shared L2 + Way-Shutdown Top)",
         fc="#F8FAFC", ec="#0F172A", lw=2.0, tsize=9.8, top=True)
 
-    # Submodule 1 (Left)
-    blk(ax, 2.75, 1.05, 4.45, 5.45,
-        "i_shared_l2_ws\n(cva6_shared_l2_16way_ws)",
+    # AXI4 Pass-through / Latency-Gate Bridge strip at top inside wrapper
+    blk(ax, 2.75, 5.75, 10.50, 0.95,
+        "AXI4 Channel Bridge & Latency Gate (AW / W / B / AR / R)",
+        "Forwards AW, W, AR directly to mst  |  Extracts l2_req_valid, l2_req_is_write, l2_req_addr[63:0], core_id[1:0] on AR/AW fire\n"
+        "Applies L2 Hit/Miss/WB/Wakeup latency backpressure on R & B valid/ready",
+        fc="#FEF3C7", ec="#B45309", lw=1.5, tsize=8.6, bsize=7.0, tc="#78350F", top=True)
+
+    # Submodule 1 (Left): cva6_shared_l2_16way_ws
+    blk(ax, 2.75, 0.95, 4.40, 4.15,
+        "i_l2_core\n(cva6_shared_l2_16way_ws)",
         "\n512 KiB, 16-Way, 64B Line\nWrite-Back Shared L2 Cache\n\n"
         "• Way-Gated Parallel Tag Lookup\n"
         "• Masked RR Victim Selector\n"
-        "• 16x 32 KiB Power-Gated Ways\n"
         "• O(1) Per-Way Dirty Counters\n"
-        "• 16-Set/Cycle Dirty Flush Engine\n"
-        "• L1D Coherence Inval Generator",
-        fc="#F0FDF4", ec="#15803D", lw=1.8, tsize=9.2, bsize=7.6, tc="#14532D", top=True)
+        "• 16-Set/Cycle Dirty Flush Engine",
+        fc="#F0FDF4", ec="#15803D", lw=1.8, tsize=9.0, bsize=7.4, tc="#14532D", top=True)
 
-    # Submodule 2 (Right)
-    blk(ax, 9.25, 1.05, 4.05, 5.45,
+    # Submodule 2 (Right): l2_way_shutdown_ctrl
+    blk(ax, 9.25, 0.95, 4.00, 4.15,
         "i_l2_ws_ctrl\n(l2_way_shutdown_ctrl)",
-        "\nDynamic Way-Shutdown Controller\n(Policy: atd_dirty_aware)\n\n"
+        "\nWay-Shutdown Controller\n(atd_dirty_aware)\n\n"
         "• 1/32 Set Sampler (set[4:0]==0)\n"
-        "• 16-Set x 16-Way LRU ATD (672 B)\n"
-        "• Epoch Decision Engine (2048 acc)\n"
-        "• Streaming Detector (< 5% hit)\n"
-        "• Dirty-Flush Cost Guard (<= 96)\n"
-        "• Power-Gate & Wakeup FSM (6 cyc)",
-        fc="#F0FDFA", ec="#0F766E", lw=1.8, tsize=9.2, bsize=7.6, tc="#134E4A", top=True)
+        "• 16-Set x 16-Way LRU ATD\n"
+        "• Epoch Engine (2048 acc)\n"
+        "• Dirty-Flush Guard (<= 96)\n"
+        "• Power-Gate & Wakeup FSM",
+        fc="#F0FDFA", ec="#0F766E", lw=1.8, tsize=9.0, bsize=7.4, tc="#134E4A", top=True)
 
-    # External Inputs (Left edge -> i_shared_l2_ws)
-    in_signals = [
-        (5.95, "clk_i, rst_ni", "#0F172A"),
-        (5.30, "arb_req_valid", "#B45309"),
-        (4.75, "arb_req_core[1:0]", "#B45309"),
-        (4.20, "arb_req_write", "#B45309"),
-        (3.65, "arb_req_addr[63:0]", "#B45309"),
-    ]
-    for y, lbl, col in in_signals:
-        wire(ax, 0.25, y, 2.75, y, label=lbl, color=col, lw=1.4, ldx=-0.15, ldy=0.16, lsize=7.2)
+    # External AXI4 Slave Ports (Left edge -> AXI4 Bridge)
+    wire(ax, 0.20, 6.45, 2.75, 6.45, label="slv: AXI4 AW / W / AR", color="#B45309", lw=1.6, ldx=-0.12, ldy=0.18, lsize=7.3)
+    wire(ax, 2.75, 5.98, 0.20, 5.98, label="slv: AXI4 R / B", color="#15803D", lw=1.6, ldx=-0.12, ldy=-0.18, lsize=7.3)
 
-    # Snoop branch from arb_req_valid / arb_req_addr across top to i_l2_ws_ctrl
-    ax.plot([2.52, 2.52, 11.25, 11.25], [5.30, 6.68, 6.68, 6.50], color="#0F766E", lw=1.4, zorder=3)
-    wire(ax, 11.25, 6.68, 11.25, 6.50, color="#0F766E", lw=1.4)
-    ax.text(8.1, 6.82, "Off-Critical-Path Snoop: l2_req_valid_i, l2_req_addr_i[63:0]",
-            ha="center", va="center", fontsize=7.2, fontweight="bold", color="#0F766E",
-            bbox=dict(boxstyle="round,pad=0.10", fc="white", ec="none"), zorder=5)
+    # External AXI4 Master Ports (Right edge <- AXI4 Bridge -> DRAM)
+    wire(ax, 13.25, 6.45, 15.80, 6.45, label="mst: AXI4 AW / W / AR", color="#B45309", lw=1.6, ldx=0.12, ldy=0.18, lsize=7.3)
+    wire(ax, 15.80, 5.98, 13.25, 5.98, label="mst: AXI4 R / B", color="#15803D", lw=1.6, ldx=0.12, ldy=-0.18, lsize=7.3)
 
-    # External Control Input to i_l2_ws_ctrl (Right edge)
-    wire(ax, 15.75, 5.95, 13.30, 5.95, label="ws_enable_i, clk_i, rst_ni",
-         color="#0F172A", lw=1.4, ldx=0.10, ldy=0.16, lsize=7.2)
+    # Control & Clock inputs (Left lower -> Wrapper)
+    wire(ax, 0.20, 4.55, 2.35, 4.55, label="clk_i, rst_ni", color="#0F172A", lw=1.4, ldx=-0.10, ldy=0.16, lsize=7.2)
+    wire(ax, 0.20, 3.85, 2.35, 3.85, label="ws_enable_i", color="#0F766E", lw=1.4, ldx=-0.10, ldy=0.16, lsize=7.2)
 
-    # External Outputs (Left bottom from i_shared_l2_ws)
-    out_left = [
-        (2.75, "l2_resp_valid, hit", "#15803D"),
-        (2.20, "l2_resp_latency[5:0]", "#15803D"),
-        (1.65, "l1_inval_valid/src/addr", "#1D4ED8"),
-        (1.18, "l2_*_o, shutdown_flushes", "#475569"),
-    ]
-    for y, lbl, col in out_left:
-        wire(ax, 2.75, y, 0.25, y, label=lbl, color=col, lw=1.4, ldx=-0.15, ldy=0.16, lsize=7.1)
+    # Telemetry Outputs (Left bottom from i_l2_core, Right bottom from i_l2_ws_ctrl)
+    wire(ax, 2.75, 1.55, 0.20, 1.55, label="cnt_l2_*_o, shutdown_flushes", color="#475569", lw=1.3, ldx=-0.10, ldy=0.18, lsize=7.0)
+    wire(ax, 13.25, 4.25, 15.80, 4.25, label="way_en_o[15:0]", color="#0369A1", lw=1.5, ldx=0.10, ldy=0.16, lsize=7.2)
+    wire(ax, 13.25, 3.55, 15.80, 3.55, label="way_sd_o[15:0]", color="#0369A1", lw=1.5, ldx=0.10, ldy=0.16, lsize=7.2)
+    wire(ax, 13.25, 2.15, 15.80, 2.15, label="cnt_ws_*_o (telemetry)", color="#475569", lw=1.3, ldx=0.10, ldy=0.16, lsize=7.0)
 
-    # External Outputs (Right edge from i_l2_ws_ctrl)
-    out_right = [
-        (4.80, "l2_way_en_o[15:0]", "#0369A1"),
-        (4.15, "l2_way_sd_o[15:0]", "#0369A1"),
-        (3.25, "ws_epochs_o[63:0]", "#475569"),
-        (2.65, "ws_shutdowns_o[63:0]", "#475569"),
-        (2.05, "ws_wakeups_o[63:0]", "#475569"),
-        (1.45, "ws_active_way_cycles_o[63:0]", "#475569"),
-    ]
-    for y, lbl, col in out_right:
-        wire(ax, 13.30, y, 15.75, y, label=lbl, color=col, lw=1.4, ldx=0.12, ldy=0.16, lsize=7.1)
+    # Bridge <-> Submodule 1 (L2 req / resp_lat)
+    wire(ax, 4.30, 5.75, 4.30, 5.10, label="l2_req_*", color="#B45309", lw=1.5, ldx=-0.55, lsize=7.0)
+    wire(ax, 5.65, 5.10, 5.65, 5.75, label="resp_lat[5:0]", color="#15803D", lw=1.5, ldx=0.72, lsize=7.0)
 
-    # Inter-Submodule Signals (Between i_shared_l2_ws and i_l2_ws_ctrl)
-    wire(ax, 9.25, 5.45, 7.20, 5.45, label="ws_way_en[15:0]", color="#0369A1", lw=1.6, ldy=0.18, lsize=7.2)
-    wire(ax, 9.25, 4.75, 7.20, 4.75, label="ws_way_sd[15:0]", color="#0369A1", lw=1.6, ldy=0.18, lsize=7.2)
-    wire(ax, 9.25, 4.05, 7.20, 4.05, label="ws_wakeup_stall", color="#0369A1", lw=1.5, ldy=0.18, lsize=7.2)
-    wire(ax, 9.25, 3.25, 7.20, 3.25, label="ws_flush_req", color="#B91C1C", lw=1.6, ldy=0.18, lsize=7.2)
-    wire(ax, 9.25, 2.65, 7.20, 2.65, label="ws_flush_way[3:0]", color="#B91C1C", lw=1.6, ldy=0.18, lsize=7.2)
-    wire(ax, 7.20, 2.00, 9.25, 2.00, label="ws_flush_done", color="#B91C1C", lw=1.6, ldy=0.18, lsize=7.2)
-    wire(ax, 7.20, 1.35, 9.25, 1.35, label="l2_way_dirty_cnt[0..15][9:0]", color="#A16207", lw=1.7, ldy=0.18, lsize=7.1)
+    # Bridge -> Submodule 2 (Off-critical-path snoop)
+    wire(ax, 11.25, 5.75, 11.25, 5.10, label="l2_req_valid, l2_req_addr[63:0]", color="#0F766E", lw=1.5, ldx=0.0, lsize=6.9)
+
+    # Inter-Submodule Signals (Between i_l2_core and i_l2_ws_ctrl)
+    wire(ax, 9.25, 4.55, 7.15, 4.55, label="ws_way_en[15:0]", color="#0369A1", lw=1.5, ldy=0.16, lsize=7.1)
+    wire(ax, 9.25, 3.95, 7.15, 3.95, label="ws_way_sd[15:0]", color="#0369A1", lw=1.5, ldy=0.16, lsize=7.1)
+    wire(ax, 9.25, 3.35, 7.15, 3.35, label="ws_wakeup_stall", color="#0369A1", lw=1.4, ldy=0.16, lsize=7.1)
+    wire(ax, 9.25, 2.70, 7.15, 2.70, label="ws_flush_req, way[3:0]", color="#B91C1C", lw=1.5, ldy=0.16, lsize=7.0)
+    wire(ax, 7.15, 2.05, 9.25, 2.05, label="ws_flush_done", color="#B91C1C", lw=1.5, ldy=0.16, lsize=7.1)
+    wire(ax, 7.15, 1.35, 9.25, 1.35, label="l2_way_dirty_cnt[0..15][9:0]", color="#A16207", lw=1.6, ldy=0.16, lsize=7.0)
 
     save_fig(fig, docs_dir, "diagram_1_l2_ws_top")
 
