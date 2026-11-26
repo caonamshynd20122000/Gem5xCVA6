@@ -15,7 +15,7 @@ Architecture exploration in gem5 (RISC-V) and SystemVerilog RTL implementation i
 | Private L1D | 32 KiB, 8-way, 128-bit line, write-through (`HPDcache`, `CACHE_WT`, Wbuf=8) |
 | Interconnect | 64-bit AXI4 crossbar (`axi_xbar`, 4x CVA6 + Debug Module) |
 | Shared L2 | 512 KiB, 16-way (`W0..W15`), 512 sets, 64B line, write-back, 4-cycle hit |
-| Way-Shutdown Control | `way_en[15:0]`, `way_sd[15:0]`, 16-set ATD (~672 B tag-only), dirty-flush guard (`<= 96`), `T_wakeup = 6 cycles` |
+| Way-Shutdown Control | `way_en[15:0]`, `way_sd[15:0]`, 16-set ATD (~672 B tag-only), fast-wakeup miss-spike detector (`>= 24` misses / 256 accesses), miss-rate shutdown guard (`<= 2.5%`), dirty-flush guard (`<= 96`), `T_wakeup = 6 cycles` |
 | Power Model | CACTI 7.0 (22nm): 111.73 mW leakage (5.86 mW/way SRAM + 18.04 mW peripheral, 4% gated residual), 19.65 pJ read, 20.81 pJ write, 0.650 nJ/64B DRAM |
 
 ## Project Stages
@@ -23,8 +23,8 @@ Architecture exploration in gem5 (RISC-V) and SystemVerilog RTL implementation i
 | Stage | Directory | Description | Status |
 | :---: | :--- | :--- | :--- |
 | Step 1 | [`step1_baseline/`](step1_baseline/) | 12 4-core RISC-V benchmarks on 4-core OpenHW CVA6 + 16-way always-on WB L2 baseline (Verilator 5.036) | Done (12/12 pass) |
-| Step 2 | [`step2_gem5_model/`](step2_gem5_model/) | Calibrated 4-core CVA6 + `WayShutdownSetAssoc` in gem5 v26.0, evaluation of 3 control schemes vs static sweep | Done (`atd_dirty_aware`: +20.24% EDP) |
-| Step 3 | [`step3_cva6_rtl/`](step3_cva6_rtl/) | SystemVerilog RTL (`atd_dirty_aware`) integrated into 4-core OpenHW CVA6 via AXI4 | Done (12/12 pass, +42.64% EDP) |
+| Step 2 | [`step2_gem5_model/`](step2_gem5_model/) | Calibrated 4-core CVA6 + `WayShutdownSetAssoc` in gem5 v26.0, evaluation of 3 control schemes vs static sweep | Done (`atd_dirty_aware`: -0.28% IPC, +20.24% EDP) |
+| Step 3 | [`step3_cva6_rtl/`](step3_cva6_rtl/) | SystemVerilog RTL (`atd_dirty_aware`) integrated into 4-core OpenHW CVA6 via AXI4 | Done (12/12 pass, -0.03% IPC, +15.67% EDP) |
 
 ## Directory Layout
 
@@ -115,7 +115,7 @@ See [`step3_cva6_rtl/results/step3_3way_comparison.md`](step3_cva6_rtl/results/s
 | :--- | ---: | ---: | ---: | ---: | ---: |
 | Step 1: OpenHW CVA6 RTL Baseline (16-way) | 16.00 | +0.00% | 0.00% | 0 | +0.00% |
 | Step 2: gem5 Model (`atd_dirty_aware`) | 11.10 | -0.28% | 24.67% | 157 | +20.24% |
-| Step 3: OpenHW CVA6 RTL (`atd_dirty_aware`) | 4.76 | -7.92% | 56.53% | 64 | +42.64% |
+| Step 3: OpenHW CVA6 RTL (`atd_dirty_aware`) | 12.54 | -0.03% | 17.43% | 345 | +15.67% |
 
 ![Step 3 Comparison](step3_cva6_rtl/results/step3_3way_comparison.png)
 
